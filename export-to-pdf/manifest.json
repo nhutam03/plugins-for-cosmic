@@ -1,0 +1,23 @@
+{
+  "name": "export-to-pdf",
+  "displayName": "Export to PDF",
+  "version": "1.0.0",
+  "description": "A plugin to export text content to PDF with Vietnamese character support",
+  "author": "Text Editor Team",
+  "main": "dist/index.js",
+  "protocol": {
+    "port": 5000,
+    "commands": {
+      "register": "register-plugin",
+      "execute": "execute-plugin",
+      "response": "plugin-response"
+    }
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "electron": "^35.0.2",
+    "pdfmake": "^0.2.18"
+  }
+}
