@@ -110,7 +110,7 @@ function createWindow() {
         const registerMessage = {
             type: "register-plugin",
             payload: {
-                name: "pdf-export",
+                name: "export-to-pdf",
                 version: "1.0.0",
                 description: "Export text content to PDF",
                 author: "Text Editor Team"
@@ -118,6 +118,30 @@ function createWindow() {
         };
 
         socket.write(JSON.stringify(registerMessage));
+
+        // Đăng ký menu item sau khi đăng ký plugin
+        setTimeout(() => {
+            const menuItems = [
+                {
+                    id: "export-to-pdf.exportToPdf",
+                    label: "Export to PDF",
+                    parentMenu: "file",
+                    position: 100,
+                    shortcut: "Ctrl+Shift+E"
+                }
+            ];
+
+            const registerMenuMessage = {
+                type: "register-menu",
+                payload: {
+                    pluginName: "export-to-pdf",
+                    menuItems: menuItems
+                }
+            };
+
+            console.log("Registering menu items:", menuItems);
+            socket.write(JSON.stringify(registerMenuMessage));
+        }, 1000); // Đợi 1 giây để đảm bảo plugin đã được đăng ký trước
     });
 
     socket.on("data", (data) => {
@@ -125,9 +149,12 @@ function createWindow() {
             const message = JSON.parse(data.toString());
             console.log("Received message:", message);
 
-            if (message.type === "execute-plugin") {
+            if (message.type === "execute-plugin" || message.type === "execute-menu-action") {
                 // Truy cập đúng cấu trúc message từ PluginManager
                 const { content, filePath } = message.payload || {};
+
+                console.log(`Received ${message.type} with content length: ${content?.length || 0}`);
+                console.log(`File path: ${filePath || 'none'}`);
 
                 // Kiểm tra xem filePath có tồn tại không
                 if (!filePath) {
@@ -141,6 +168,26 @@ function createWindow() {
                         }
                     }));
                     return;
+                }
+
+                // Nếu là execute-menu-action, kiểm tra menuItemId
+                if (message.type === "execute-menu-action") {
+                    const { menuItemId } = message.payload || {};
+                    console.log(`Menu item ID: ${menuItemId}`);
+
+                    // Chỉ xử lý nếu là menu item của plugin này
+                    if (menuItemId !== "export-to-pdf.exportToPdf") {
+                        console.error(`Unknown menu item ID: ${menuItemId}`);
+                        socket.write(JSON.stringify({
+                            type: "plugin-response",
+                            id: message.id,
+                            payload: {
+                                success: false,
+                                message: `Unknown menu item ID: ${menuItemId}`
+                            }
+                        }));
+                        return;
+                    }
                 }
 
                 try {

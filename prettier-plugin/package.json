@@ -1,14 +1,29 @@
 {
   "name": "prettier-plugin",
   "version": "1.0.0",
-  "main": "index.js",
-  "devDependencies": {},
+  "description": "Code formatting plugin using Prettier",
+  "main": "dist/index.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "description": ""
+  "keywords": [
+    "prettier",
+    "formatter",
+    "code",
+    "plugin"
+  ],
+  "author": "Text Editor Team",
+  "license": "MIT",
+  "dependencies": {
+    "prettier": "^3.1.0",
+    "@prettier/plugin-xml": "^3.0.0",
+    "prettier-plugin-java": "^2.0.0",
+    "prettier-plugin-sql": "^0.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.2"
+  }
 }
