@@ -57,7 +57,7 @@ const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama2';
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-pro';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 // Parse command line arguments
 const args = process.argv.slice(2);
 let PORT = 5001; // Default port changed to 5001 to match Firebase emulator port
@@ -107,21 +107,21 @@ function connectToEditor() {
                 // Process any queued messages
                 while (messageQueue.length > 0) {
                     const message = messageQueue.shift();
-                    client.write(JSON.stringify(message));
+                    client.write(JSON.stringify(message) + '\n');
                 }
                 // Register plugin
                 client.write(JSON.stringify({
-                    type: 'REGISTER_PLUGIN',
+                    type: 'register-plugin',
                     payload: {
                         name: 'ai-assistant',
                         version: '1.0.0',
                         description: 'AI Assistant plugin for Text Editor',
                         author: 'nhtam'
                     }
-                }));
+                }) + '\n');
                 // Register menu items
                 client.write(JSON.stringify({
-                    type: 'REGISTER_MENU',
+                    type: 'register-menu',
                     payload: {
                         pluginName: 'ai-assistant',
                         menuItems: [
@@ -151,7 +151,7 @@ function connectToEditor() {
                             }
                         ]
                     }
-                }));
+                }) + '\n');
             });
         }
         catch (err) {
@@ -205,10 +205,10 @@ function connectToEditor() {
 function handleMessage(message) {
     console.log('Received message:', message.type);
     switch (message.type) {
-        case 'EXECUTE':
+        case 'execute-plugin':
             handleExecute(message);
             break;
-        case 'MENU_ACTION':
+        case 'execute-menu-action':
             handleMenuAction(message);
             break;
         default:
@@ -219,14 +219,25 @@ function handleMessage(message) {
 function sendResponse(id, success, message, data = {}) {
     const response = {
         id,
-        success,
-        message,
-        data
+        type: 'plugin-response',
+        payload: {
+            success,
+            message,
+            data
+        }
     };
-    if (connected) {
-        client.write(JSON.stringify(response));
+    if (connected && client && !client.destroyed) {
+        try {
+            client.write(JSON.stringify(response) + '\n');
+            console.log(`Response sent for ID ${id}: ${success ? 'SUCCESS' : 'FAILURE'}`);
+        }
+        catch (error) {
+            console.error('Error sending response:', error);
+            messageQueue.push(response);
+        }
     }
     else {
+        console.log(`Queueing response for ID ${id} (not connected)`);
         messageQueue.push(response);
     }
 }
@@ -234,16 +245,24 @@ function sendResponse(id, success, message, data = {}) {
 function handleExecute(message) {
     return __awaiter(this, void 0, void 0, function* () {
         const { content, filePath, options } = message.payload;
-        console.log('Executing AI Assistant plugin with content length:', (content === null || content === void 0 ? void 0 : content.length) || 0);
-        console.log('File path:', filePath || 'none');
+        console.log('🔥 [AI Plugin] Executing AI Assistant plugin');
+        console.log('📝 [AI Plugin] Content length:', (content === null || content === void 0 ? void 0 : content.length) || 0);
+        console.log('📁 [AI Plugin] File path:', filePath || 'none');
+        console.log('⚙️ [AI Plugin] Options:', JSON.stringify(options, null, 2));
+        console.log('🆔 [AI Plugin] Message ID:', message.id);
         try {
+            console.log('🧠 [AI Plugin] Starting AI processing...');
             // Process the content based on options
             const result = yield processWithAI(content, options);
+            console.log('✅ [AI Plugin] AI processing completed successfully');
+            console.log('📤 [AI Plugin] Result length:', (result === null || result === void 0 ? void 0 : result.length) || 0);
+            console.log('📤 [AI Plugin] Result preview:', (result === null || result === void 0 ? void 0 : result.substring(0, 100)) + '...');
             // Send response
             sendResponse(message.id, true, 'AI processing completed', { result });
         }
         catch (error) {
-            console.error('Error processing with AI:', error);
+            console.error('❌ [AI Plugin] Error processing with AI:', error);
+            console.error('❌ [AI Plugin] Error stack:', error.stack);
             sendResponse(message.id, false, `Error: ${error.message}`);
         }
     });
@@ -275,23 +294,23 @@ function handleMenuAction(message) {
                     // For generate code, we'll open a dialog to get user input
                     sendResponse(message.id, true, 'Opening AI Chat dialog');
                     client.write(JSON.stringify({
-                        type: 'SHOW_AI_CHAT',
+                        type: 'show-ai-chat',
                         payload: {
                             title: 'Generate Code',
                             initialPrompt: 'Generate code for:'
                         }
-                    }));
+                    }) + '\n');
                     return;
                 case 'ai-assistant.aiChat':
                     // Open AI Chat dialog
                     sendResponse(message.id, true, 'Opening AI Chat dialog');
                     client.write(JSON.stringify({
-                        type: 'SHOW_AI_CHAT',
+                        type: 'show-ai-chat',
                         payload: {
                             title: 'AI Chat',
                             initialPrompt: ''
                         }
-                    }));
+                    }) + '\n');
                     return;
                 default:
                     throw new Error(`Unknown menu item: ${menuItemId}`);
@@ -387,26 +406,64 @@ function processWithHuggingFace(content_1) {
 // Process with Google Gemini via Proxy
 function processWithGemini(content_1) {
     return __awaiter(this, arguments, void 0, function* (content, options = {}) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         try {
             const model = options.model || GEMINI_MODEL;
-            // Tạm thời trả về mock response để test
-            console.log('🧠 AI processing request:', content.substring(0, 50) + '...');
-
-            // Mock AI response
-            const mockResponse = `function helloWorld() {
-    console.log("Hello, World!");
-    return "Hello, World!";
-}
-
-// Usage example:
-helloWorld();`;
-
-            return mockResponse;
+            console.log('🤖 [Gemini] Starting Gemini processing...');
+            console.log('🤖 [Gemini] Model:', model);
+            console.log('🤖 [Gemini] Content length:', (content === null || content === void 0 ? void 0 : content.length) || 0);
+            console.log('🤖 [Gemini] Options:', JSON.stringify(options, null, 2));
+            // Sử dụng Firebase Function proxy thay vì gọi trực tiếp Gemini API
+            // Thử emulator local trước, nếu không được thì dùng deployed function
+            console.log('🔍 [Gemini] NODE_ENV:', process.env.NODE_ENV);
+            console.log('🔍 [Gemini] Environment check:', process.env.NODE_ENV === 'development');
+            const proxyUrl = process.env.NODE_ENV === 'development'
+                ? 'http://127.0.0.1:5002/cosmic-text-editor/us-central1/geminiProxy'
+                : 'http://127.0.0.1:5002/cosmic-text-editor/us-central1/geminiProxy'; // Tạm thời dùng local cho cả hai
+            console.log('🌐 [Gemini] Using proxy URL:', proxyUrl);
+            const requestData = {
+                model,
+                contents: [
+                    {
+                        parts: [
+                            { text: `${options.systemPrompt || 'You are a helpful coding assistant.'}\n\n${options.prompt || ''}\n\n${content}` }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    temperature: options.temperature || 0.7,
+                    maxOutputTokens: options.maxTokens || 2000
+                }
+            };
+            console.log('📤 [Gemini] Sending request to proxy:', JSON.stringify(requestData, null, 2));
+            const response = yield axios_1.default.post(proxyUrl, requestData, {
+                timeout: 30000, // 30 seconds timeout
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            console.log('📥 [Gemini] Received response from proxy');
+            console.log('📥 [Gemini] Response status:', response.status);
+            console.log('📥 [Gemini] Response data:', JSON.stringify(response.data, null, 2));
+            // Validate response structure
+            if (!response.data || !response.data.candidates || !response.data.candidates[0] ||
+                !response.data.candidates[0].content || !response.data.candidates[0].content.parts ||
+                !response.data.candidates[0].content.parts[0] || !response.data.candidates[0].content.parts[0].text) {
+                console.error('❌ [Gemini] Invalid response structure:', response.data);
+                throw new Error('Invalid response structure from Gemini proxy');
+            }
+            const result = response.data.candidates[0].content.parts[0].text;
+            console.log('✅ [Gemini] Processing completed successfully');
+            console.log('✅ [Gemini] Result length:', (result === null || result === void 0 ? void 0 : result.length) || 0);
+            return result;
         }
         catch (error) {
-            console.error('Error processing with Gemini proxy:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
-            throw new Error('Failed to process with Gemini: ' + (((_c = (_b = error.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.error) || error.message));
+            console.error('❌ [Gemini] Error processing with Gemini proxy:', error);
+            console.error('❌ [Gemini] Error response:', (_a = error.response) === null || _a === void 0 ? void 0 : _a.data);
+            console.error('❌ [Gemini] Error status:', (_b = error.response) === null || _b === void 0 ? void 0 : _b.status);
+            console.error('❌ [Gemini] Error message:', error.message);
+            console.error('❌ [Gemini] Error stack:', error.stack);
+            throw new Error('Failed to process with Gemini: ' + (((_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) || error.message));
         }
     });
 }
