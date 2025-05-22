@@ -66,7 +66,7 @@ const pluginInfo = {
 // Get port from command line arguments
 const args = process.argv.slice(2);
 const portArg = args.find(arg => arg.startsWith('--port='));
-const PORT = portArg ? parseInt(portArg.split('=')[1]) : 5000;
+const PORT = portArg ? parseInt(portArg.split('=')[1]) : 5001;
 const HOST = 'localhost';
 
 // Create socket connection
