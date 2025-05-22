@@ -1,0 +1,17 @@
+{
+  "name": "autosave-plugin",
+  "version": "1.0.0",
+  "description": "Automatically saves your document after every set interval",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:mock": "ts-node src/mock.ts"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "net": "^1.0.2",
+    "path": "^0.12.7"
+  }
+}
