@@ -1,0 +1,48 @@
+{
+  "name": "ai-assistant",
+  "version": "1.0.0",
+  "description": "AI Assistant plugin for Text Editor",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "author": "nhutwm",
+  "license": "MIT",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
+    "firebase": "^11.7.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.2"
+  },
+  "menuItems": [
+    {
+      "id": "ai-assistant.completeCode",
+      "label": "Complete Code",
+      "parentMenu": "edit",
+      "accelerator": "Alt+C"
+    },
+    {
+      "id": "ai-assistant.explainCode",
+      "label": "Explain Code",
+      "parentMenu": "edit",
+      "accelerator": "Alt+E"
+    },
+    {
+      "id": "ai-assistant.generateCode",
+      "label": "Generate Code",
+      "parentMenu": "edit",
+      "accelerator": "Alt+G"
+    },
+    {
+      "id": "ai-assistant.aiChat",
+      "label": "AI Chat",
+      "parentMenu": "view",
+      "accelerator": "Alt+A"
+    }
+  ]
+}
